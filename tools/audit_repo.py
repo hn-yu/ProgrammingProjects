@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from urllib.parse import unquote
+
+from PIL import Image, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 
 md_link = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 html_src = re.compile(r'''(?:src|href)=["']([^"']+)["']''', re.I)
+code_fence = re.compile(r"```(?:c\+\+|cpp|cxx|c)?\s*\n(.*?)```", re.S | re.I)
 
 IGNORE_PREFIXES = (
     "http://", "https://", "mailto:", "#", "javascript:", "data:",
@@ -20,7 +22,6 @@ def local_target(md: Path, raw: str):
     raw = raw.strip().strip("<>")
     if not raw or raw.startswith(IGNORE_PREFIXES):
         return None
-    # Markdown can include an optional title after whitespace.
     if ' "' in raw:
         raw = raw.split(' "', 1)[0]
     raw = raw.split("#", 1)[0].split("?", 1)[0]
@@ -55,11 +56,12 @@ def scan_patterns():
     patterns = {
         "uninitialized Eigen Matrix": re.compile(r"\bMatrix\s+\w+\s*\(\s*\d+\s*,\s*\d+\s*\)\s*;"),
         "squared norm used as norm divisor": re.compile(r"\bnorm\s*=\s*[^;]*\*[^;]*;[\s\S]{0,200}?/=\s*norm\s*;"),
-        "bare natom (possible missing mol.)": re.compile(r"for\s*\([^\n;]*;\s*[^;]*<\s*natom\s*;"),
         "mol.atom typo": re.compile(r"\bmol\.atom\b"),
         "an2masses typo": re.compile(r"\ban2masses\b"),
         "nonstandard M_PI": re.compile(r"\bM_PI\b"),
         "deprecated auto_ptr": re.compile(r"\bauto_ptr\b"),
+        "obvious placeholder link": re.compile(r"\]\(addlink\)"),
+        "Hartree-Fock misspelling": re.compile(r"\bHartee-Fock\b"),
     }
     hits = {k: [] for k in patterns}
     for p in ROOT.rglob("*"):
@@ -69,9 +71,42 @@ def scan_patterns():
         for label, rx in patterns.items():
             for m in rx.finditer(text):
                 line = text.count("\n", 0, m.start()) + 1
-                snippet = text[m.start():m.start()+160].replace("\n", " ")
+                snippet = text[m.start():m.start()+180].replace("\n", " ")
                 hits[label].append((p.relative_to(ROOT), line, snippet))
     return hits
+
+
+def audit_code_fences():
+    findings = []
+    for md in ROOT.rglob("*.md"):
+        text = md.read_text(errors="replace")
+        for block_idx, block in enumerate(code_fence.findall(text), 1):
+            # FILE* variable consistency.
+            declared = set(re.findall(r"\bFILE\s*\*\s*(\w+)", block))
+            opened = set(re.findall(r"\b(\w+)\s*=\s*fopen\s*\(", block))
+            scanned = re.findall(r"\bfscanf\s*\(\s*(\w+)", block)
+            closed = re.findall(r"\bfclose\s*\(\s*(\w+)\s*\)", block)
+            known = declared | opened
+            for var in scanned:
+                if known and var not in known:
+                    findings.append((md.relative_to(ROOT), block_idx, f"fscanf uses '{var}' but FILE/fopen variables are {sorted(known)}"))
+            for var in closed:
+                if known and var not in known:
+                    findings.append((md.relative_to(ROOT), block_idx, f"fclose uses '{var}' but FILE/fopen variables are {sorted(known)}"))
+
+            # Definite pointer-rank mismatch: double** x then x[index] = scalar.
+            for var in re.findall(r"\bdouble\s*\*\*\s*(\w+)\b", block):
+                scalar_assign = re.search(rf"\b{re.escape(var)}\s*\[[^\]]+\]\s*=\s*[^=]", block)
+                if scalar_assign:
+                    rhs = block[scalar_assign.end()-1:scalar_assign.end()+80]
+                    if not re.match(r"\s*new\s+double", rhs):
+                        findings.append((md.relative_to(ROOT), block_idx, f"'{var}' declared double** but assigned through one subscript"))
+
+            # Classic integer-division-in-sqrt mistakes in numeric formulas.
+            if re.search(r"sqrt\s*\(\s*\d+\s*/\s*\d+\s*\)", block):
+                findings.append((md.relative_to(ROOT), block_idx, "sqrt contains integer division; use floating literals"))
+
+    return findings
 
 
 def audit_repo_hygiene():
@@ -84,9 +119,8 @@ def audit_project1_indexing():
     findings = []
     for p in sorted((ROOT / "Project#01" / "hints").glob("step*-solution.md")):
         text = p.read_text(errors="replace")
-        if "for(int j=0; j < i; j++)" in text and "for(int k=0; k < j; k++)" in text and "Torsional angles" in text:
-            # carried-forward monotonic-index torsion loop can miss valid chains
-            pos = text.find("Torsional angles")
+        pos = text.find("Torsional angles")
+        if pos >= 0:
             tail = text[pos:pos+1800]
             if "for(int j=0; j < i; j++)" in tail and "for(int k=0; k < j; k++)" in tail and "for(int l=0; l < k; l++)" in tail:
                 findings.append((p.relative_to(ROOT), "torsion enumeration constrained by atom-number ordering"))
@@ -97,9 +131,32 @@ def audit_project1_indexing():
 
 def audit_project3_density_convention():
     p = ROOT / "Project#03" / "README.md"
-    text = p.read_text(errors="replace")
-    has_explicit = "one-spin" in text.lower() or "factor of two" in text.lower() and "density" in text.lower()
-    return has_explicit
+    text = p.read_text(errors="replace").lower()
+    return "one-spin" in text or "one spin" in text
+
+
+def audit_pngs():
+    rows = []
+    for p in sorted(ROOT.rglob("*.png")):
+        try:
+            im = Image.open(p).convert("RGBA")
+        except Exception as exc:
+            rows.append((p.relative_to(ROOT), "ERROR", str(exc)))
+            continue
+        pixels = list(im.getdata())
+        visible = [(r,g,b,a) for r,g,b,a in pixels if a > 8]
+        if not visible:
+            rows.append((p.relative_to(ROOT), "EMPTY", "no visible pixels"))
+            continue
+        alpha_transparent = sum(a < 250 for _,_,_,a in pixels) / len(pixels)
+        lum = [0.2126*r + 0.7152*g + 0.0722*b for r,g,b,a in visible]
+        mean_lum = sum(lum) / len(lum)
+        dark_fraction = sum(x < 80 for x in lum) / len(lum)
+        light_fraction = sum(x > 200 for x in lum) / len(lum)
+        # Formula images that are mostly dark foreground on transparency are unreadable in dark mode.
+        if alpha_transparent > 0.01 and dark_fraction > light_fraction:
+            rows.append((p.relative_to(ROOT), "DARK_TRANSPARENT", f"mean={mean_lum:.1f} dark={dark_fraction:.3f} light={light_fraction:.3f}"))
+    return rows
 
 
 def main():
@@ -115,6 +172,11 @@ def main():
         for row in rows[:100]:
             print("HIT", label, *row, sep=" | ")
 
+    code_findings = audit_code_fences()
+    print(f"CODE_FENCE_FINDINGS={len(code_findings)}")
+    for row in code_findings:
+        print("CODE", *row, sep=" | ")
+
     ds, pyc = audit_repo_hygiene()
     print(f"DS_STORE={len(ds)}")
     for p in ds:
@@ -127,6 +189,11 @@ def main():
         print("P1", p, msg, sep=" | ")
 
     print("PROJECT3_DENSITY_CONVENTION_EXPLICIT=", audit_project3_density_convention())
+
+    png = audit_pngs()
+    print(f"PNG_READABILITY_FINDINGS={len(png)}")
+    for row in png:
+        print("PNG", *row, sep=" | ")
 
 
 if __name__ == "__main__":
