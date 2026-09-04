@@ -23,11 +23,12 @@ To use the library to diagonalize your moment inertia tensor, follow these steps
 #include "Eigen/Core"
 
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Matrix;
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1> Vector;
 ```
 This code defines a new type called a `Matrix` that may be dynamically allocated and contains only doubles.
-- Allocate your moment of inertia tensor by a line of code like:
+- Allocate and zero-initialize your moment of inertia tensor. Eigen's size-only constructor does **not** initialize the entries:
 ```c++
-Matrix I(3,3);
+Matrix I = Matrix::Zero(3,3);
 ```
 - Access or assign individual elements of the Matrix using parenthetical notation rather than brackets, e.g.:
 ```c++
@@ -41,5 +42,5 @@ cout << I << endl;
 ```c++
   Eigen::SelfAdjointEigenSolver<Matrix> solver(I);
   Matrix evecs = solver.eigenvectors();
-  Matrix evals = solver.eigenvalues();
+  Vector evals = solver.eigenvalues();
 ```

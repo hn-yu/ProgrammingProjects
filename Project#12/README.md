@@ -78,86 +78,58 @@ are components of one singlet and one triplet in the following combinations:
 
 <img src="./figures/triplet-combinations.png" height="50">
 
+and
+
 <img src="./figures/singlet-combinations.png" height="50">
 
-where the superscript is the spin multiplicity (*2S+1*) and the subscript is
-the *M<sub>S</sub>* value of the wave function.  So, if we wanted to compute
-only the eigenvalues and eigenfunctions corresponding spin singlets in our CIS
-calculation, we could introduce the restriction on our CIS coefficients that <html>&alpha;</html> 
-and <html>&beta;</html> excitations involving the same <i>spatial</i> orbitals 
-must be identical (including the sign).  Similarly, if we wanted only triplets, 
-we could require that the <html>&alpha;</html> and <html>&beta;</html> excitations 
-have the same magnitude but opposite signs.
+We can use this fact to reduce the dimension of our original CIS Hamiltonian by
+re-writing it in a basis of spin-adapted functions.  In the case of the
+spin-singlets, we use the function
 
-Let's begin with the singlets.  Starting from the spin-orbital eigenvalue
-expression and the equation for the CIS Hamiltonian matrix elements in the
-previous section, we may write a spin-factored equation for the <html>&alpha;</html> 
-coefficients as
+<img src="./figures/identical-ci-coeff.png" height="50">
 
-<img src="./figures/spin-factored-eqn.png" height="55">
+whereas, for the spin-triplet wave functions, we may use
 
-Note that the mix-spin cases (where *j=*<html>&alpha;</html> and
-*b=*<html>&beta;</html> or *vice versa*) do not contribute since the Fock
-matrix elements and two-electron integrals must all give zero.  If we then
-carry out spin integration on the integrals in the above expression and assume
-that the <html>&alpha;</html> and <html>&beta;</html> CI coefficients are
-identical for the same spatial orbitals, i.e.,
+<img src="./figures/inverse-ci-coeff.png" height="50">
 
-<img src="./figures/identical-ci-coeff.png" height="30">
+which is the M<sub>S</sub> = 0 component of the triplet.  In both cases, the
+resulting CIS Hamiltonian has dimensions of the number of occupied spatial
+orbitals times the number of unoccupied spatial orbitals -- one quarter the
+size of the original spin-orbital CIS Hamiltonian.  Using the Slater-Condon
+rules, one may derive the following matrix elements:
 
-we obtain the <b><i>spatial orbital</i></b> expression
+Singlets:
 
-<img src="./figures/spatial-orbital-expression.png" height="50">
+<img src="./figures/spin-factored-eqn.png" height="35">
 
-The part in brackets above is an expression for the spatial-orbital CIS
-Hamiltonian, spin-adapted for singlet excited states, and diagonalization of
-this matrix will yield only the singlet eigenvalues you obtained from your
-spin-orbital matrix earlier.
+Triplets:
 
-  * [Hint](./hints/hint2.md): Spin-adapted CIS singlet Hamiltonian for STO-3G H<sub>2</sub>O
+<img src="./figures/spatial-orbital-expression.png" height="35">
 
-How about the triplets?  We use exactly the same spin-factorization, but
-instead require
+  * [Hint](./hints/hint2.md): Spin-Adapted CIS Hamiltonian for STO-3G H<sub>2</sub>O
 
-<img src="./figures/inverse-ci-coeff.png" height="30">
+Again, make sure you can compute the correct CIS excitation energies for each
+of the four test cases provided at the end of the page.  What is the
+relationship between the eigenvalues of the original CIS matrix and those of
+the spin-adapted matrices?
 
-This yields a slightly simpler Hamiltonian:
+## Time-Dependent Hartree-Fock / Random-Phase Approximation
 
-<img src="./figures/simpler-hamiltonian.png" height="50">
+One of the important limitations of CIS is that the ground state is described
+by a single Hartree-Fock determinant.  Thus, the method lacks ground-state
+correlation, which can lead to significant errors in excitation energies.  A
+closely related method that partially corrects this deficiency is
+Time-Dependent Hartree-Fock (TDHF), also called the random-phase approximation
+(RPA).  The TDHF/RPA wave function may be written in terms of both excitation
+and de-excitation operators, and the resulting eigenvalue equation is
 
-which, upon diagonalization, will yield only the triplet eigenvalues (but each only occurring once) from your earlier diagonalziation.
+<img src="./figures/tdhf-eqn.png" height="40">
 
-Why should we worry about spin adaptation?  Because the dimension of the
-spatial-orbital Hamiltonian matrix is **half** that of the spin-orbital
-Hamiltonian, which is a factor of **four** savings in the storage of the matrix
-and a factor of **eight** in the diagonalization.  For large basis sets and/or
-large molecules, this is a considerable computational savings and essential for
-production-level codes.
+where the **A** and **B** matrices have elements
 
-Make sure you can implement the spin-adapted CIS approach entirely in spatial
-orbitals and obtain the correct excitation energies so that you can take
-advantage of this greater efficiency available in this formulation.  (NB: For
-the CH<sub>4</sub> test case below, you still get groups of three excitation
-energies in the spin-adapted formulation.  Do you understand why this
-degeneracy arises?)
+<img src="./figures/A-matrix.png" height="25">
 
-## Time-Dependent Hartree Fock (TDHF)/The Random Phase Approximation (RPA)
-
-The TDHF/RPA approach is closely related to CIS in that only singles are
-involved in the wave function expansion, except that both excitation and
-"de-excitation" operators are involved. (It is probably better to view the
-TDHF/RPA wave function expansion in terms of orbital rotations instead of
-Slater determinants, but that's a discussion for another day.)  The TDHF/RPA
-eigenvalue equations take the form
-
-<img src="./figures/tdhf-eqn.png" height="50">
-
-The definition of the ***A*** matrix is just the CIS matrix itself, *viz.*
-
-<img src="./figures/A-matrix.png" height="30">
-
-while **X** and **Y** are the parameters of single excitations and
-de-excitations, respectively, and the ***B*** matrix is simply
+and
 
 <img src="./figures/B-matrix.png" height="25">
 
@@ -210,7 +182,9 @@ approach, for all four test cases below.
 
 ## Test Cases
 The input structures, integrals, etc. for these examples may be found in the 
-[input directory](./input).
+[input directory](./input). Cartesian coordinates in the provided `geom.dat`
+files are in **bohr**; convert them explicitly if an external program expects
+angstroms.
 
 | Test Case | CIS | RPA (Method 1) | RPA (Method 2) |
 |-----------|-----|----------------|----------------|
@@ -218,4 +192,3 @@ The input structures, integrals, etc. for these examples may be found in the
 | DZ Water | [output](./output/h2o/DZ/output_cis.txt) | [output](./output/h2o/DZ/output_rpa1.txt) | [output](./output/h2o/DZ/output_rpa2.txt) |
 | DZP Water | [output](./output/h2o/DZP/output_cis.txt) | [output](./output/h2o/DZP/output_rpa1.txt) | [output](./output/h2o/DZP/output_rpa2.txt) |
 | STO-3G Methane | [output](./output/ch4/STO-3G/output_cis.txt) | [output](./output/ch4/STO-3G/output_rpa1.txt) | [output](./output/ch4/STO-3G/output_rpa2.txt) |
-

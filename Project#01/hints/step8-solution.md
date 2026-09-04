@@ -60,12 +60,19 @@ int main()
   }
  
   cout << "\nTorsional angles:\n\n";
-  for(int i=0; i < mol.natom; i++) {
-    for(int j=0; j < i; j++) {
-      for(int k=0; k < j; k++) {
-        for(int l=0; l < k; l++) {
-          if(mol.bond(i,j) < 4.0 && mol.bond(j,k) < 4.0 && mol.bond(k,l) < 4.0)
-            printf("%2d-%2d-%2d-%2d %10.6f\n", i, j, k, l, mol.torsion(i,j,k,l)*(180.0/acos(-1.0)));
+  // Canonicalize only the central bond (j < k).  A global index ordering such
+  // as i > j > k > l would make the result depend on arbitrary atom numbering.
+  for(int j=0; j < mol.natom; j++) {
+    for(int k=j+1; k < mol.natom; k++) {
+      if(mol.bond(j,k) >= distance_cutoff) continue;
+      for(int i=0; i < mol.natom; i++) {
+        if(i == j || i == k || mol.bond(i,j) >= distance_cutoff) continue;
+        for(int l=0; l < mol.natom; l++) {
+          if(l == i || l == j || l == k || mol.bond(k,l) >= distance_cutoff) continue;
+          // A torsion is undefined when either plane normal vanishes.
+          if(fabs(sin(mol.angle(i,j,k))) < 1e-12 ||
+             fabs(sin(mol.angle(j,k,l))) < 1e-12) continue;
+          printf("%2d-%2d-%2d-%2d %10.6f\n", i, j, k, l, mol.torsion(i,j,k,l)*(180.0/acos(-1.0)));
         }
       }
     }
@@ -241,8 +248,32 @@ Out-of-plane angles:
 
 Torsional angles:
 
- 3- 2- 1- 0 180.000000
- 6- 5- 4- 0  36.366799
+ 4- 0- 1- 2   0.000000
+ 4- 0- 1- 3 180.000000
+ 5- 0- 1- 2 121.097586
+ 5- 0- 1- 3 -58.902414
+ 6- 0- 1- 2 -121.097586
+ 6- 0- 1- 3  58.902414
+ 1- 0- 4- 5 121.064344
+ 1- 0- 4- 6 -121.064344
+ 5- 0- 4- 6 117.871313
+ 6- 0- 4- 5 -117.871313
+ 1- 0- 5- 4 -121.033513
+ 1- 0- 5- 6 119.434473
+ 4- 0- 5- 6 -119.532014
+ 6- 0- 5- 4 119.532014
+ 1- 0- 6- 4 121.033513
+ 1- 0- 6- 5 -119.434473
+ 4- 0- 6- 5 119.532014
+ 5- 0- 6- 4 -119.532014
+ 0- 1- 2- 3 180.000000
+ 0- 1- 3- 2 180.000000
+ 0- 4- 5- 6  36.366799
+ 6- 4- 5- 0 -36.366799
+ 0- 4- 6- 5 -36.366799
+ 5- 4- 6- 0  36.366799
+ 0- 5- 6- 4  34.930266
+ 4- 5- 6- 0 -34.930266
 
 Molecular center of mass:   0.64494926   0.00000000   2.31663792
 

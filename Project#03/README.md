@@ -58,7 +58,7 @@ Hence, the integrals obey the eight-fold permutational symmetry relationships:
 
 <img src="./figures/permutational-symmetry.png" height="20">
 
-and only the permutationally unique integrals are provided in the file, with the restriction that, for each integral, the following relationships hold:
+and only the **non-zero, permutationally unique** integrals are provided in the file. Any packed or full ERI storage must therefore be initialized to zero before the file is read. For each integral that is present, the following relationships hold:
 
 <img src="./figures/index-restrictions.png" height="20">
 
@@ -115,11 +115,13 @@ Build the density matrix using the occupied MOs:
 
 where *m* indexes the columns of the coefficient matrices, and the summation includes only the occupied spatial MOs.
 
+**Density convention used in this project.** This `P` is the one-spin (spatial-orbital) density, `P_{mu nu} = sum_m C_{mu m} C_{nu m}`, so there is deliberately **no factor of 2** in its definition. The closed-shell factor of two is instead carried explicitly by the `2J-K` Fock build and by one-electron property formulas. If you choose the spin-summed convention `D = 2P`, the Fock and energy formulas must be changed consistently.
+
   * [Hint 1](./hints/hint5-1.md): Transformed Fock matrix
   * [Hint 2](./hints/hint5-2.md): Initial MO Coefficients
   * [Hint 3](./hints/hint5-3.md): Initial Density Matrix
 
-## Step 6: Compute the Inital SCF Energy
+## Step 6: Compute the Initial SCF Energy
 
 The SCF electronic energy may be computed using the density matrix as:
 
@@ -208,7 +210,7 @@ where the vector notation implies three sets of dipole-moment integrals -- one f
 
 Two points to note:
   - In order to compute the total dipole moment, you must include the nuclear contribution, which requires the atomic numbers and Cartesian coordinates of the nuclei, in addition to the above.
-  - The factor 2 appearing above arises because the definition of the density used in this project differs from that used in Szabo & Ostlund.
+  - The factor 2 appearing above is the closed-shell spin factor because this project uses the one-spin spatial density `P`, rather than the spin-summed density `D = 2P`.
 
 The test cases provided below include the structural information dipole integrals needed to compute the dipole moment.
 
