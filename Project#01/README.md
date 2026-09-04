@@ -38,7 +38,7 @@ where x, y, and z are Cartesian coordinates and i and j denote atomic indices.
 - [Solution](./hints/step2-solution.md)
 
 ## Step 3: Bond Angles
-Calculate all possible bond angles. For example, the angle, &phi;<sub>ijk</sub>, between atoms i-j-k, where j is the central atom is given by:
+Calculate all unique bond-angle candidates, allowing every atom to serve as the central atom. The 4.0 bohr distance cutoff used in the printing hints and examples is only a simple proximity filter; it is not a chemical bond definition. For example, the angle, &phi;<sub>ijk</sub>, between atoms i-j-k, where j is the central atom is given by:
 
 <img src="./figures/bond-angle.png" height="25">
 

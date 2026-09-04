@@ -32,11 +32,16 @@ int main()
     for(int j=0; j < i; j++)
       printf("%d %d %8.5f\n", i, j, mol.bond(i,j));
  
-  cout << "\nBond angles:\n";
-  for(int i=0; i < mol.natom; i++) {
-    for(int j=0; j < i; j++) {
-      for(int k=0; k < j; k++) {
-        if(mol.bond(i,j) < 4.0 && mol.bond(j,k) < 4.0)
+  constexpr double distance_cutoff = 4.0;
+  cout << "\nBond angles (both adjacent distances < 4.0 bohr):\n";
+  // j is the central atom.  i < k removes only the i-j-k / k-j-i duplicate;
+  // it does not constrain which atom may be the center.
+  for(int j=0; j < mol.natom; j++) {
+    for(int i=0; i < mol.natom; i++) {
+      if(i == j) continue;
+      for(int k=i+1; k < mol.natom; k++) {
+        if(k == j) continue;
+        if(mol.bond(i,j) < distance_cutoff && mol.bond(j,k) < distance_cutoff)
           printf("%2d-%2d-%2d %10.6f\n", i, j, k, mol.angle(i,j,k)*(180.0/acos(-1.0)));
       }
     }
@@ -68,14 +73,14 @@ int main()
  
   /* find the center of mass (COM) */
   double M = 0.0;
-  for(int i=0; i < natom; i++) M += an2masses[(int) mol.zvals[i]];
+  for(int i=0; i < mol.natom; i++) M += masses[(int) mol.zvals[i]];
  
   double xcm=0.0;
   double ycm=0.0;
   double zcm=0.0;
   double mi;
-  for(int i=0; i < natom; i++) {
-    mi = an2masses[(int) mol.zvals[i]];
+  for(int i=0; i < mol.natom; i++) {
+    mi = masses[(int) mol.zvals[i]];
     xcm += mi * mol.geom[i][0];
     ycm += mi * mol.geom[i][1];
     zcm += mi * mol.geom[i][2];
@@ -87,7 +92,7 @@ int main()
  
   mol.translate(-xcm, -ycm, -zcm);
  
-  Matrix I(3,3);
+  Matrix I = Matrix::Zero(3,3);
  
   for(int i=0; i < mol.natom; i++) {
     mi = masses[(int) mol.zvals[i]];
@@ -109,7 +114,7 @@ int main()
   // find the principal moments
   Eigen::SelfAdjointEigenSolver<Matrix> solver(I);
   Matrix evecs = solver.eigenvectors();
-  Matrix evals = solver.eigenvalues();
+  Vector evals = solver.eigenvalues();
  
   cout << "\nPrincipal moments of inertia (amu * bohr^2):\n";
   cout << evals << endl;
@@ -186,14 +191,27 @@ Interatomic distances (bohr):
 6 4  3.38971
 6 5  3.33994
 
-Bond angles:
+Bond angles (both adjacent distances < 4.0 bohr):
+ 1- 0- 4 109.847056
+ 1- 0- 5 109.898406
+ 1- 0- 6 109.898406
+ 4- 0- 5 109.953682
+ 4- 0- 6 109.953682
+ 5- 0- 6 107.252646
  0- 1- 2 124.268308
  0- 1- 3 115.479341
+ 2- 1- 3 120.252351
+ 1- 2- 3  28.377448
+ 1- 3- 2  31.370201
  0- 4- 5  35.109529
  0- 4- 6  35.109529
+ 5- 4- 6  59.031048
+ 0- 5- 4  34.936789
  0- 5- 6  36.373677
- 1- 2- 3  28.377448
  4- 5- 6  60.484476
+ 0- 6- 4  34.936789
+ 0- 6- 5  36.373677
+ 4- 6- 5  60.484476
 
 Out-of-plane angles:
  0- 3- 1- 2  -0.000000
