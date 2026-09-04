@@ -1,4 +1,4 @@
-The Hessian stored in memory should be a square matrix, while the format of the input file is rectangular.  Understanding the translation between the two takes a bit of thinking.  Here's a partial code block that works for this purpose:
+The Hessian stored in memory should be a square matrix, while the format of the input file is rectangular.  Understanding the translation between the two takes a bit of thinking. Each input row contains three consecutive Hessian elements; therefore an N-atom system has 3N^2 data rows containing (3N)^2 scalar values in total.  Here's a partial code block that works for this purpose:
 ```c++
   ...
   FILE *hessian;

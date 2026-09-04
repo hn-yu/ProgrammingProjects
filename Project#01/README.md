@@ -58,6 +58,8 @@ Calculate all possible out-of-plane angles. For example, the angle &theta;<sub>i
 
 <img src="./figures/oop-angle.png" height="60">
 
+In the notation used by the solution code, `oop(i,j,k,l)` always treats the **third argument, `k`, as the central atom**. The order in which loop variables are nested does not change that meaning; the relevant proximity checks are i-k, k-j, and k-l.
+
 - [Hint 1](./hints/hint4-1.md): Memory allocation?
 - [Hint 2](./hints/hint4-2.md): Cross products
 - [Hint 3](./hints/hint4-3.md): Numerical precision
@@ -70,6 +72,8 @@ Calculate all possible torsional angles. For example, the torsional angle &tau;<
 <img src="./figures/torsion-angle.png" height="60">
 
 Can you also determine the sign of the torsional angle?
+
+For unique torsions, canonicalize the **central bond** (for example, require `j < k`) rather than requiring `i < j < k < l` or the reverse. Atom numbering is arbitrary, so a monotonic-index rule can silently omit valid i-j-k-l chains.
 
 - [Hint 1](./hints/hint5-1.md): Memory allocation?
 - [Hint 2](./hints/hint5-2.md): Numerical precision

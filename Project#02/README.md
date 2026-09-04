@@ -22,6 +22,8 @@ while the remaining values have the following format:
 
 <img src="./figures/hessian-file-format.png" width="200">
 
+The in-memory Hessian has `(3N) x (3N) = (3N)^2` scalar elements. The text file groups **three scalar values per data row**, so after the initial atom-count line it contains `3N^2` rows, not `(3N)^2` rows. For water (`N=3`), that is 27 rows containing 81 Hessian values.
+
  * [Hint 1](./hints/hint1.md): Reading the Hessian
 
 ## Step 3: Mass-Weight the Hessian Matrix
@@ -48,7 +50,7 @@ you used in [Project #1](../Project%2301).
 
 ## Step 5: Compute the Harmonic Vibrational Frequencies
 
-The vibrational frequencies are proportional to the squareroot of the eigenvalues of the mass-weighted Hessian:
+The vibrational frequencies are proportional to the square root of the eigenvalues of the mass-weighted Hessian:
 
 <img src="./figures/vib-freq.png" height="25">
 
