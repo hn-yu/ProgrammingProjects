@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from urllib.parse import unquote
 
-from PIL import Image, ImageStat
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -81,7 +81,6 @@ def audit_code_fences():
     for md in ROOT.rglob("*.md"):
         text = md.read_text(errors="replace")
         for block_idx, block in enumerate(code_fence.findall(text), 1):
-            # FILE* variable consistency.
             declared = set(re.findall(r"\bFILE\s*\*\s*(\w+)", block))
             opened = set(re.findall(r"\b(\w+)\s*=\s*fopen\s*\(", block))
             scanned = re.findall(r"\bfscanf\s*\(\s*(\w+)", block)
@@ -94,7 +93,6 @@ def audit_code_fences():
                 if known and var not in known:
                     findings.append((md.relative_to(ROOT), block_idx, f"fclose uses '{var}' but FILE/fopen variables are {sorted(known)}"))
 
-            # Definite pointer-rank mismatch: double** x then x[index] = scalar.
             for var in re.findall(r"\bdouble\s*\*\*\s*(\w+)\b", block):
                 scalar_assign = re.search(rf"\b{re.escape(var)}\s*\[[^\]]+\]\s*=\s*[^=]", block)
                 if scalar_assign:
@@ -102,7 +100,6 @@ def audit_code_fences():
                     if not re.match(r"\s*new\s+double", rhs):
                         findings.append((md.relative_to(ROOT), block_idx, f"'{var}' declared double** but assigned through one subscript"))
 
-            # Classic integer-division-in-sqrt mistakes in numeric formulas.
             if re.search(r"sqrt\s*\(\s*\d+\s*/\s*\d+\s*\)", block):
                 findings.append((md.relative_to(ROOT), block_idx, "sqrt contains integer division; use floating literals"))
 
@@ -124,7 +121,7 @@ def audit_project1_indexing():
             tail = text[pos:pos+1800]
             if "for(int j=0; j < i; j++)" in tail and "for(int k=0; k < j; k++)" in tail and "for(int l=0; l < k; l++)" in tail:
                 findings.append((p.relative_to(ROOT), "torsion enumeration constrained by atom-number ordering"))
-        if "cross_x /= norm;" in text and "cross_y /= norm;" in text:
+        if "cross_x /= norm;" in text and "cross_y /= norm;" in text and "sqrt(cross_x*cross_x" not in text:
             findings.append((p.relative_to(ROOT), "torsion sign helper divides by squared norm instead of sqrt(norm)"))
     return findings
 
@@ -153,7 +150,6 @@ def audit_pngs():
         mean_lum = sum(lum) / len(lum)
         dark_fraction = sum(x < 80 for x in lum) / len(lum)
         light_fraction = sum(x > 200 for x in lum) / len(lum)
-        # Formula images that are mostly dark foreground on transparency are unreadable in dark mode.
         if alpha_transparent > 0.01 and dark_fraction > light_fraction:
             rows.append((p.relative_to(ROOT), "DARK_TRANSPARENT", f"mean={mean_lum:.1f} dark={dark_fraction:.3f} light={light_fraction:.3f}"))
     return rows
