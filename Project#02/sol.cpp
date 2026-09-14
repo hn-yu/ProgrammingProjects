@@ -7,4 +7,6 @@ int main()
   M.load_Hessian("./input/h2o_hessian.txt");
   cout << M.geom << endl;
   cout << M.hessian << endl;
+  M.weight_Hessian();
+  cout << M.hessian << endl;
 };

@@ -97,4 +97,15 @@ public:
       }
     }
   }
+
+  void weight_Hessian()
+  {
+    for (int i = 0; i < 3 * n_atoms; ++i)
+    {
+      for (int j = 0; j < 3 * n_atoms; ++j)
+      {
+        hessian(i, j) = hessian(i, j) / sqrt(masses[i/3] * masses[j/3]);
+      }
+    }
+  }
 };
