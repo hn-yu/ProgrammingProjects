@@ -79,14 +79,18 @@ public:
     z.resize(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
     {
-      file >> z[i] >> geom(i, 0) >> geom(i, 1) >> geom(i, 2);
+      double d;
+      file >> d >> geom(i, 0) >> geom(i, 1) >> geom(i, 2);
+      z[i] = (int) d;
     }
   }
 
   void load_Hessian(fs::path filename)
   {
     ifstream file(filename);
-    file >> n_atoms;
+    int n;
+    file >> n;
+    assert(n == n_atoms);
     hessian.resize(3 * n_atoms, 3 * n_atoms);
 
     for (int i = 0; i < 3 * n_atoms; ++i)
@@ -104,7 +108,7 @@ public:
     {
       for (int j = 0; j < 3 * n_atoms; ++j)
       {
-        hessian(i, j) = hessian(i, j) / sqrt(masses[i/3] * masses[j/3]);
+        hessian(i, j) /= sqrt(masses[z[i/3]] * masses[z[j/3]]);
       }
     }
   }
