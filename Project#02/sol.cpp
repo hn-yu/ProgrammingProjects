@@ -8,6 +8,7 @@ public:
   int n_atoms;
   Eigen::VectorXd z;
   Eigen::MatrixXd geom;
+  Eigen::MatrixXd hessian;
 
   Molecule(string filename)
   {
@@ -25,11 +26,14 @@ public:
   {
     ifstream file(filename);
     file >> n_atoms;
-    Eigen::MatrixXd hessian;
+    hessian.resize(3*n_atoms, 3*n_atoms);
 
-    for (int i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < 3*n_atoms; ++i)
     {
-      file >> hessian(i,0) >> hessian(i,1) >> hessian(i,2);
+      for (int j = 0; j < 3*n_atoms; ++j)
+      {
+        file >> hessian(i,j);
+      }
     }
   }
 };
@@ -40,4 +44,5 @@ int main()
   cout << M.geom << endl;
   cout << M.geom(0,2) << endl;
   cout << M.z << endl;
+  cout << M.hessian << endl; 
 };
