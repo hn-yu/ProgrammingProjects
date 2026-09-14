@@ -1,5 +1,6 @@
 // molecule.h
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues>
 namespace fs = std::filesystem;
 using namespace std;
 
@@ -111,5 +112,11 @@ public:
         hessian(i, j) /= sqrt(masses[z[i/3]] * masses[z[j/3]]);
       }
     }
+  }
+
+  auto solve_Hessian()
+  {
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(hessian);
+    return solver;
   }
 };
