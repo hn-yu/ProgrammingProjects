@@ -80,6 +80,7 @@ int main()
   cout << X.transpose() * S * X << endl;
 
   // Step 5：Build the Initial Guess Density
+  mat F = H;
   mat F_prime = X.transpose() * H * X;
   Eigen::SelfAdjointEigenSolver<mat> solver(F_prime);
   auto eps = solver.eigenvalues();
@@ -87,23 +88,38 @@ int main()
   auto C = X * C_prime;
   cout << eps << endl;
   int n_electrons = M.z.sum();
-  mat C_occ = C.leftCols(n_electrons/2);
+  mat C_occ = C.leftCols(n_electrons / 2);
   mat P = C_occ * C_occ.transpose();
 
   // Step 6 : initial SCF energy
   // E_total = E_elec + E_nuc
   double E_elec = 0;
-  for(int mu = 0; mu < n_basis; mu++)
+  for (int mu = 0; mu < n_basis; mu++)
   {
-    for(int nu = 0; nu < n_basis; nu++)
+    for (int nu = 0; nu < n_basis; nu++)
     {
       E_elec += P(mu, nu) * H(mu, nu);
     }
   }
   E_elec *= 2;
-  // =−125.8420774 
+  // =−125.8420774
   cout << E_elec << endl;
 
   // step 7: build Fock Matrix
+
+  for (int mu = 0; mu < n_basis; ++mu)
+  {
+    for (int nu = 0; nu < n_basis; ++nu)
+    {
+      for (int lambda = 0; lambda < n_basis; ++lambda)
+      {
+        for (int sigma = 0; sigma < n_basis; ++sigma)
+        {
+          F(mu, nu) += P(lambda, sigma) * (2 * ERI[eri_index(mu, nu, lambda, sigma)] - ERI[eri_index(mu, lambda, nu, sigma)]) ;
+        }
+      }
+    }
+  }
   
+  cout << F(0, 0) << endl;
 }
