@@ -67,9 +67,8 @@ mat build_density(const mat &C, int n_occ) {
   return C_occ * C_occ.transpose();
 }
 
-OrbitalSolution solve_fock(mat H, mat X) {
-  mat F = H;
-  mat F_prime = X.transpose() * H * X;
+OrbitalSolution solve_fock(mat F, mat X) {
+  mat F_prime = X.transpose() * F * X;
   Eigen::SelfAdjointEigenSolver<mat> solver(F_prime);
   mat C = X * solver.eigenvectors();
   return {solver.eigenvalues(), C};
@@ -94,7 +93,7 @@ mat build_fock(const mat &H, const mat &P, const vector<double> &ERI) {
 
 int main() {
   Molecule M("./input/h2o/STO-3G/geom.dat");
-  ifstream nuc("./input/h2o/STO-3G/s.dat");
+  ifstream nuc("./input/h2o/STO-3G/enuc.dat");
   int n_basis = 7;
   double E_nuc;
   nuc >> E_nuc;
@@ -102,11 +101,9 @@ int main() {
   mat T = read_one_elec_integrals("./input/h2o/STO-3G/t.dat", n_basis);
   mat V = read_one_elec_integrals("./input/h2o/STO-3G/v.dat", n_basis);
   mat H = T + V;
-  cout << H << endl;
   auto ERI = read_two_elec_integrals("./input/h2o/STO-3G/eri.dat", 7);
-  cout << ERI[0] << endl;
   auto X = inv_s_1_2(S);
-  cout << X.transpose() * S * X << endl;
+  // cout << X.transpose() * S * X << endl;
 
   // Step 5：Build the Initial Guess Density
 
@@ -114,23 +111,33 @@ int main() {
   auto eps = solution.eps;
   auto C = solution.C;
   int n_electrons = M.z.sum();
-  mat P = build_density(C, n_electrons / 2);
-  mat F = build_fock(H, P, ERI);
-  cout << F(0, 0) << endl;
 
-  // Step 6 : initial SCF energy
-  // E_total = E_elec + E_nuc
-  double E_elec = 0;
-  for (int mu = 0; mu < n_basis; mu++) {
-    for (int nu = 0; nu < n_basis; nu++) {
-      E_elec += P(mu, nu) * H(mu, nu);
+
+  // we need a loop to iter to convergence
+
+  cout << "iter    E_elec      E_total      ||dP||" << endl;
+  mat P = build_density(C, n_electrons / 2);
+
+  for (int i=0; i<100; i++) {
+    mat F = build_fock(H, P, ERI);
+    double E_elec = 0;
+    for (int mu = 0; mu < n_basis; mu++) {
+      for (int nu = 0; nu < n_basis; nu++) {
+        E_elec += P(mu, nu) * (H(mu, nu) + F(mu, nu));
+      }
     }
+
+    auto solution = solve_fock(F, X);
+    mat C_new = solution.C;
+    mat P_new = build_density(C_new, n_electrons/2);
+    double delta = (P-P_new).norm();
+    if (delta < 1e-8) {
+    break;
+    }
+    P = P_new;
+    cout << i << "    "
+     << E_elec << "    "
+     << E_elec + E_nuc << "    "
+     << delta << endl;
   }
-  E_elec *= 2;
-  // =−125.8420774
-  cout << E_elec << endl;
-  
-  auto new_solution = solve_fock(F, X);
-  mat P_new = build_density(new_solution.C, n_electrons / 2);
-  cout << (P_new - P).norm() << endl;
 }
