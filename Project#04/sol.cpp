@@ -17,18 +17,61 @@ int pair_index(int x, int y) {
 
 // step 1
 
-vector<double> read_eri(fs::path p) {
+vector<double> read_eri(fs::path p, int N=7) {
   ifstream file(p);
   int i,j,k,l;
   double val;
-  vector<double> v;
+  int n_pairs = N*(N+1)/2;
+  int n_eri = n_pairs*(n_pairs+1)/2;
+  vector<double> v(n_eri, 0.0);
   while (file>>i>>j>>k>>l>>val) {
     i--,j--,k--,l--;
-    v[(pair_index(i,j),pair_index(k,l))] = val;
+    v[pair_index(pair_index(i,j),pair_index(k,l))] = val;
   }
   return v;
 }
 
+vector<double> build_mo_eri(Eigen::MatrixXd C, vector<double> ERI, int N=7) {
+  int n = N;
+  int n_pairs = N*(N+1)/2;
+  int n_eri = n_pairs*(n_pairs+1)/2;
+  vector<double> v(n_eri, 0.0);
+  for (int p = 0; p < n; p++)
+  for (int q = 0; q < n; q++)
+  for (int r = 0; r < n; r++)
+  for (int s = 0; s < n; s++) {
+      // AO indices
+      double value = 0.0;
+      for (int mu = 0; mu < n; mu++)
+      for (int nu = 0; nu < n; nu++)
+      for (int lambda = 0; lambda < n; lambda++)
+      for (int sigma = 0; sigma < n; sigma++) {
+          // transform AO → MO
+          value += C(mu, p) * C(nu, q) * C(lambda, r) * C(sigma, s)* ERI[pair_index(pair_index(mu, nu), pair_index(lambda, sigma))];
+          v[pair_index(pair_index(p, q),pair_index(r, s))] = value;
+      }
+  }
+  return v;
+}
+
+double solve_mp2(Eigen::VectorXd eps, vector<double> mo_eri, int n_orbs=7, int occ_orbs=5){
+  double E = 0;
+  for (int i=0; i<occ_orbs; i++) {
+    for (int j=0; j<occ_orbs; j++) {
+      for (int a=occ_orbs; a<n_orbs; a++) {
+        for (int b=occ_orbs; b<n_orbs; b++) {
+          E += 
+            mo_eri[pair_index(pair_index(i,a), pair_index(j, b))] *
+            (2*mo_eri[pair_index(pair_index(i,a), pair_index(j, b))]
+            - mo_eri[pair_index(pair_index(i,b), pair_index(j,a))])
+            / (eps(i)+eps(j)-eps(a)-eps(b));
+        }
+      }
+    }
+  }
+  return E;
+
+}
 
 // eps
 //  -20.2629
@@ -49,23 +92,33 @@ vector<double> read_eri(fs::path p) {
 
 int main() {
 
-Eigen::VectorXd eps(7);
-eps << -20.2628916159283,
-       -1.20969737403243,
-       -0.547964650344694,
-       -0.436527201552660,
-       -0.387586717477443,
-        0.477618724096820,
-        0.588139282147268;
+  Eigen::VectorXd eps(7);
+  eps << -20.2628916159283,
+        -1.20969737403243,
+        -0.547964650344694,
+        -0.436527201552660,
+        -0.387586717477443,
+          0.477618724096820,
+          0.588139282147268;
 
-Eigen::MatrixXd C(7, 7);
-C <<
-     0.994434590006859,      0.239158851089128,     -1.02348685082632e-16,   0.0936832464001311,   7.36965518813063e-17,  -0.111639928375259,    1.16226472890446e-15,
-     0.0240970423735649,    -0.885735597070493,      8.04911692853238e-16,  -0.479585882235305,   -5.05250018681422e-16,   0.669579090571556,   -6.96664947952286e-15,
-    -2.92734586571086e-17,   0.0,                    0.607284837774404,       2.63677968348475e-16, 2.73461005994298e-15,   7.89646126264643e-15, 0.919234270976311,
-     0.00316154908020769,   -0.0858962049931432,    -1.01307850997046e-15,   0.747431403486689,   -2.74611972183706e-15,   0.738488594920583,   -6.00214322687975e-15,
-    -3.89156145171157e-18,   2.04521297728544e-16,   2.08107871171500e-15,  -1.85492643878150e-15, -1.0,                  -1.81412757841694e-15, 1.53612723132597e-15,
-    -0.00459374350559526,   -0.144039554833434,      0.452997740970912,       0.329471162640818,    4.17394389800617e-16,  -0.709849500289897,   -0.732460666827315,
-    -0.00459374350559568,   -0.144039554833432,     -0.452997740970914,       0.329471162640815,    8.72663583877567e-16,  -0.709849500289883,    0.732460666827329;
+  Eigen::MatrixXd C(7, 7);
+  C <<
+      0.994434590006859,      0.239158851089128,     -1.02348685082632e-16,   0.0936832464001311,   7.36965518813063e-17,  -0.111639928375259,    1.16226472890446e-15,
+      0.0240970423735649,    -0.885735597070493,      8.04911692853238e-16,  -0.479585882235305,   -5.05250018681422e-16,   0.669579090571556,   -6.96664947952286e-15,
+      -2.92734586571086e-17,   0.0,                    0.607284837774404,       2.63677968348475e-16, 2.73461005994298e-15,   7.89646126264643e-15, 0.919234270976311,
+      0.00316154908020769,   -0.0858962049931432,    -1.01307850997046e-15,   0.747431403486689,   -2.74611972183706e-15,   0.738488594920583,   -6.00214322687975e-15,
+      -3.89156145171157e-18,   2.04521297728544e-16,   2.08107871171500e-15,  -1.85492643878150e-15, -1.0,                  -1.81412757841694e-15, 1.53612723132597e-15,
+      -0.00459374350559526,   -0.144039554833434,      0.452997740970912,       0.329471162640818,    4.17394389800617e-16,  -0.709849500289897,   -0.732460666827315,
+      -0.00459374350559568,   -0.144039554833432,     -0.452997740970914,       0.329471162640815,    8.72663583877567e-16,  -0.709849500289883,    0.732460666827329;
 
+  // MO indices
+  auto ERI = read_eri(eri_file);
+  auto start = std::chrono::steady_clock::now();
+  auto mo_eri = build_mo_eri(C, ERI);
+  auto end = std::chrono::steady_clock::now();
+  auto elapsed = std::chrono::duration<double>(end - start).count();
+  // time: 0.845168 s
+  cout << "time: " << elapsed << " s\n";
+  double e = solve_mp2(eps, mo_eri);
+  cout << "E_mp2:  " << e << endl;
 }
